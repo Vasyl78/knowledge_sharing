@@ -1,0 +1,842 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+
+  <title>gRPC / nawa-rpc</title>
+
+  <meta name="description" content="gRPC">
+
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/css/reveal.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/css/theme/black.css" id="theme">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.10/styles/ir-black.min.css">
+
+  <script>
+    var srcUrlPrefix = 'https://cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/';
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.type = 'text/css';
+    link.href = srcUrlPrefix + (window.location.search.match(/print-pdf/gi) ? 'css/print/pdf.css' : 'css/print/paper.css');
+    document.getElementsByTagName('head')[0].appendChild(link);
+  </script>
+
+  <style>
+    /*
+    body {
+      background-color: black;
+    }
+    */
+
+
+    .container {
+      display: flex;
+    }
+
+    .col {
+      flex: 1
+    }
+    .custom-text {
+      text-indent: 30px;
+      text-align: left;
+    }
+    .medium-big-text {
+      font-size:  85%;
+    }
+    .small-text {
+      font-size: 65%;
+    }
+    .small-table {
+      font-size:  70%;
+    }
+    section > .ul-left-align {
+      display: block;
+      text-align: left;
+    }
+
+    .custom-text > code {
+      background-color: #3D3D3D
+    }
+    li > code {
+      background-color: #3D3D3D
+    }
+
+    section > pre.skip-top-bottom-padding {
+      margin-top: -35px;
+      margin-bottom: -35px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="reveal">
+
+    <div class="slides">
+
+      <section>
+        <section>
+          <h2>
+            gRPC Overview
+          </h2>
+
+          <p class="custom-text">
+            gRPC Remote Procedure Call (gRPC) is an open-source, contract-based, cross-platform communication protocol that simplifies and manages interservice communication by exposing a set of functions to external clients.
+          </p>
+        </section>
+        <section>
+          <p class="custom-text">
+            Built on top of HTTP/2, gRPC leverages features such as bidirectional streaming and built-in Transport Layer Security (TLS). gRPC enables more efficient communication through serialized binary payloads. It uses protocol buffers by default as its mechanism for structured data serialization, similar to REST’s use of JSON.
+          </p>
+        </section>
+      </section>
+
+      <section>
+        <h2>
+          Comparing REST vs. gRPC
+        </h2>
+        <table class="small-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>REST</th>
+              <th>gRPC</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Cross-platform</td>
+              <td>Yes</td>
+              <td>Yes</td>
+            </tr>
+            <tr>
+              <td>Message Format</td>
+              <td>Custom but generally JSON or XML  </td>
+              <td>Protocol buffers</td>
+            </tr>
+            <tr>
+              <td>Message Payload Size</td>
+              <td>Medium/Large</td>
+              <td>Small</td>
+            </tr>
+            <tr>
+              <td>Processing Complexity </td>
+              <td>Higher (text parsing)</td>
+              <td>Lower (well-defined binary structure)</td>
+            </tr>
+            <tr>
+              <td>Browser Support</td>
+              <td>Yes (native)</td>
+              <td>Yes (via gRPC-Web)</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>
+          Basic gRPC Concepts
+        </h2>
+
+        <p class="custom-text">
+          Most of the gRPC advantages stem from the following concepts:
+        </p>
+        <ul class="ul-left-align">
+          <li>
+            Protocol Buffers
+          </li>
+          <li>
+            Streaming
+          </li>
+          <li>
+            HTTP/2
+          </li>
+          <li>
+            Channels
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>
+          Protocol Buffers
+        </h2>
+        <p class="custom-text">
+          Protocol buffers, or Protobuf, is Google’s serialization/deserialization protocol that enables the easy definition of services and auto-generation of client libraries.
+        </p>
+      </section>
+
+      <section>
+        <section>
+          <h2>Scalar Value Types</h2>
+          <table class="small-table">
+            <thead>
+              <tr>
+                <th>.proto Type</th>
+                <th>C++ Type</th>
+                <th>Go Type</th>
+                <th>Ruby Type</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>double</td>
+                <td>double</td>
+                <td>float64</td>
+                <td>Float</td>
+                <td>0.0</td>
+              </tr>
+              <tr>
+                <td>int32</td>
+                <td>int32</td>
+                <td>int32</td>
+                <td>Fixnum or Bignum (as required)</td>
+                <td>0</td>
+              </tr>
+              <tr>
+                <td>bool</td>
+                <td>bool</td>
+                <td>bool</td>
+                <td>TrueClass/FalseClass</td>
+                <td>false</td>
+              </tr>
+
+              <tr>
+                <td>string</td>
+                <td>string</td>
+                <td>string</td>
+                <td>String (UTF-8)</td>
+                <td>'' (empty string)</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section>
+          <h2>
+            Default Values
+          </h2>
+
+          <p class="custom-text">
+            Defaults are type-specific:
+          </p>
+          <ul class="ul-left-align medium-big-text">
+            <li>
+              For strings, the default value is the empty string.
+            </li>
+            <li>
+              For bytes, the default value is empty bytes.
+            </li>
+            <li>
+              For bools, the default value is false.
+            </li>
+            <li>
+              For numeric types, the default value is zero.
+            </li>
+            <li>
+              For enums, the default value is the first defined enum value, which must be 0.
+            </li>
+            <li>
+              For message fields, the field is not set. Its exact value is language-dependent.
+            </li>
+            <p>
+              The default value for repeated fields is empty.
+            </p>
+          </ul>
+        </section>
+      </section>
+
+      <section>
+        <section>
+          <h2>
+            Enumerations
+          </h2>
+
+          <p class="custom-text">
+            When you're defining a message type, you might want one of its fields to only have one of a pre-defined list of values.
+            You can do this very simply by adding an <code>enum</code> to your message definition with a constant for each possible value.
+          </p>
+        </section>
+        <section>
+          <pre data-id="code-animation">
+            <code class="hljs" data-trim data-line-numbers>
+              enum Corpus {
+                CORPUS_UNSPECIFIED = 0;
+                CORPUS_UNIVERSAL = 1;
+                CORPUS_WEB = 2;
+                CORPUS_IMAGES = 3;
+                CORPUS_NEWS = 4;
+                CORPUS_PRODUCTS = 5;
+                CORPUS_VIDEO = 6;
+              }
+              message SearchRequest {
+                int32 page_number = 1;
+                int32 result_per_page = 2;
+                Corpus corpus = 3;
+              }
+            </code>
+          </pre>
+        </section>
+      </section>
+      <section>
+        <section>
+          <h2>
+            Using Other Message Types
+          </h2>
+          <p class="custom-text">
+            You can use other message types as field types. For example, let's say you wanted to include Result messages in each SearchResponse message – to do this, you can define a Result message type in the same .proto and then specify a field of type Result in SearchResponse:
+          </p>
+        </section>
+        <section>
+          <pre data-id="code-animation">
+            <code class="hljs" data-trim data-line-numbers>
+             message SearchResponse {
+                repeated Result results = 1;
+              }
+
+              message Result {
+                string url = 1;
+                string title = 2;
+                repeated string snippets = 3;
+              }
+            </code>
+          </pre>
+        </section>
+        <section>
+          <h2>
+            Nested Types
+          </h2>
+          <p class="custom-text small-text">
+            You can define and use message types inside other message types, as in the following example – here the Result message is defined inside the SearchResponse message:
+          </p>
+          <pre data-id="code-animation">
+            <code class="hljs" data-trim data-line-numbers>
+             message SearchResponse {
+              message Result {
+                string url = 1;
+                string title = 2;
+                repeated string snippets = 3;
+              }
+              repeated Result results = 1;
+            }
+            </code>
+          </pre>
+
+        </section>
+        <section>
+          <p class="custom-text small-text">
+            If you want to reuse this message type outside its parent message type, you refer to it as _Parent_._Type_:
+          </p>
+          <pre data-id="code-animation">
+            <code class="hljs" data-trim data-line-numbers>
+              message SomeOtherMessage {
+                SearchResponse.Result result = 1;
+              }
+            </code>
+          </pre>
+        </section>
+      </section>
+      <section>
+        <section>
+          <h2>
+            Oneof
+          </h2>
+
+          <p class="custom-text">
+            If you have a message with many fields and where at most one field will be set at the same time, you can enforce this behavior and save memory by using the oneof feature.
+          </p>
+        </section>
+        <section>
+          <h3>
+            Using Oneof
+          </h3>
+          <p class="custom-text medium-big-text">
+            To define a oneof in your <code>.proto</code> you use the oneof keyword followed by your oneof name, in this case <code>
+            test_oneof</code>:
+          </p>
+          <pre data-id="code-animation">
+            <code class="hljs" data-trim data-line-numbers>
+              message SampleMessage {
+                oneof test_oneof {
+                  string name = 4;
+                  SubMessage sub_message = 9;
+                }
+              }
+            </code>
+          </pre>
+          <p class="custom-text medium-big-text">
+            You then add your oneof fields to the oneof definition. You can add fields of any type, except map fields and repeated fields.
+          </p>
+        </section>
+      </section>
+      <section>
+        <section>
+          <h2>
+            Maps
+          </h2>
+
+          <p class="custom-text medium-big-text">
+            If you want to create an associative map as part of your data definition, protocol buffers provides a handy shortcut syntax:
+          </p>
+          <pre data-id="code-animation">
+            <code class="hljs" data-trim data-line-numbers>
+              map&#60;key_type, value_type&#62; map_field = N;
+            </code>
+          </pre>
+
+          <p class="custom-text medium-big-text">
+            ...where the <code>key_type</code> can be any integral or string type (so, any scalar type except for floating point types and <code>bytes</code>). Note that enum is not a valid <code>key_type</code>. The <code>value_type</code> can be any type except another map.
+          </p>
+        </section>
+        <section>
+          <p class="custom-text medium-big-text">
+            So, for example, if you wanted to create a map of projects where each Project message is associated with a string key, you could define it like this:
+          </p>
+
+          <pre data-id="code-animation">
+            <code class="hljs" data-trim data-line-numbers>
+              map&#60;string, Project&#62; projects = 3;
+            </code>
+          </pre>
+
+          <ul class="ul-left-align medium-big-text">
+            <li>
+              Map fields cannot be <code>repeated</code>.
+            </li>
+            <li>
+              Wire format ordering and map iteration ordering of map values are undefined, so you cannot rely on your map items being in a particular order.
+            </li>
+          </ul>
+        </section>
+        <section>
+          <h2>
+            Backwards compatibility
+          </h2>
+
+          <p class="custom-text medium-big-text">
+            The map syntax is equivalent to the following on the wire, so protocol buffers implementations that do not support maps can still handle your data:
+          </p>
+
+          <pre data-id="code-animation">
+            <code class="hljs" data-trim data-line-numbers>
+              message MapFieldEntry {
+                key_type key = 1;
+                value_type value = 2;
+              }
+
+              repeated MapFieldEntry map_field = N;
+            </code>
+          </pre>
+          <p class="custom-text medium-big-text">
+            Any protocol buffers implementation that supports maps must both produce and accept data that can be accepted by the above definition.
+          </p>
+        </section>
+      </section>
+
+      <section>
+        <section>
+          <h2>
+            Importing Definitions
+          </h2>
+          <p class="custom-text medium-big-text">
+            You can use definitions from other <code>.proto</code> files by <i>importing</i> them. To import another <code>.proto</code>'s definitions, you add an import statement to the top of your file:
+          </p>
+
+          <pre data-id="code-animation">
+            <code class="hljs" data-trim data-line-numbers>
+              import "myproject/other_protos.proto";
+            </code>
+          </pre>
+        </section>
+        <section>
+          <p class="custom-text">
+            <code>import public</code> dependencies can be transitively relied upon by any code importing the proto containing the <code>import public</code> statement. For example:
+          </p>
+
+          <pre data-id="code-animation" class="skip-top-bottom-padding">
+            <code class="hljs" data-trim data-line-numbers>
+              // new.proto
+              // All definitions are moved here
+            </code>
+          </pre>
+
+          <pre data-id="code-animation" class="skip-top-bottom-padding">
+            <code class="hljs" data-trim data-line-numbers>
+              // old.proto
+              // This is the proto that all clients are importing.
+              import public "new.proto";
+              import "other.proto";
+            </code>
+          </pre>
+
+          <pre data-id="code-animation" class="skip-top-bottom-padding">
+            <code class="hljs" data-trim data-line-numbers>
+              // client.proto
+              import "old.proto";
+              // You use definitions from old.proto and new.proto, but not other.proto
+            </code>
+          </pre>
+        </section>
+      </section>
+      <section>
+        <section>
+          <h2>
+            Packages
+          </h2>
+          <p class="custom-text medium-big-text">
+            You can add an optional <code>package</code> specifier to a <code>.proto</code> file to prevent name clashes between protocol message types.
+          </p>
+
+          <pre data-id="code-animation" class="skip-top-bottom-padding">
+            <code class="hljs" data-trim data-line-numbers>
+              package foo.bar;
+              message Open { ... }
+            </code>
+          </pre>
+          <p class="custom-text medium-big-text">
+            You can then use the package specifier when defining fields of your message type:
+          </p>
+
+          <pre data-id="code-animation" class="skip-top-bottom-padding">
+            <code class="hljs" data-trim data-line-numbers>
+              message Foo {
+                ...
+                foo.bar.Open open = 1;
+                ...
+              }
+            </code>
+          </pre>
+        </section>
+      </section>
+      <section>
+        <section>
+          <h2>
+            Additional Types
+          </h2>
+          <h3>
+            JSON Mapping
+          </h3>
+          <h4>
+            Any
+          </h4>
+          <p class="custom-text medium-big-text">
+            If the Any contains a value that has a special JSON mapping, it will be converted as follows: {"@type": xxx, "value": yyy}. Otherwise, the value will be converted into a JSON object, and the "@type" field will be inserted to indicate the actual data type.
+          </p>
+
+          <pre data-id="code-animation" class="skip-top-bottom-padding">
+            <code class="hljs" data-trim data-line-numbers>
+              {"@type": "url", "f": v, … }
+            </code>
+          </pre>
+        </section>
+        <section>
+          <h4>
+            Timestamp
+          </h4>
+          <p class="custom-text medium-big-text">
+            Uses RFC 3339, where generated output will always be Z-normalized and uses 0, 3, 6 or 9 fractional digits. Offsets other than "Z" are also accepted.
+          </p>
+
+          <pre data-id="code-animation" class="skip-top-bottom-padding">
+            <code class="hljs" data-trim data-line-numbers>
+              "1972-01-01T10:00:20.021Z"
+            </code>
+          </pre>
+        </section>
+        <section>
+          <h4>
+            Duration
+          </h4>
+          <p class="custom-text medium-big-text">
+            Generated output always contains 0, 3, 6, or 9 fractional digits, depending on required precision, followed by the suffix "s". Accepted are any fractional digits (also none) as long as they fit into nano-seconds precision and the suffix "s" is required.
+          </p>
+
+          <pre data-id="code-animation" class="skip-top-bottom-padding">
+            <code class="hljs" data-trim data-line-numbers>
+              "1.000340012s", "1s"
+            </code>
+          </pre>
+        </section>
+        <section>
+          <h4>
+            Struct
+          </h4>
+          <p class="custom-text medium-big-text">
+            Any JSON object. See <code>struct.proto</code>.
+          </p>
+
+          <pre data-id="code-animation" class="skip-top-bottom-padding">
+            <code class="hljs" data-trim data-line-numbers>
+              { … }
+            </code>
+          </pre>
+        </section>
+        <section>
+          <h4>
+            Wrapper types
+          </h4>
+          <p class="custom-text medium-big-text">
+            Wrappers use the same representation in JSON as the wrapped primitive type, except that <code>null</code> is allowed and preserved during data conversion and transfer.
+          </p>
+
+          <pre data-id="code-animation" class="skip-top-bottom-padding">
+            <code class="hljs" data-trim data-line-numbers>
+              2, "2", "foo", true, "true", null, 0, …
+            </code>
+          </pre>
+        </section>
+        <section>
+          <h4>
+            FieldMask
+          </h4>
+          <p class="custom-text medium-big-text">
+            See <code>field_mask.proto</code>.
+          </p>
+
+          <pre data-id="code-animation" class="skip-top-bottom-padding">
+            <code class="hljs" data-trim data-line-numbers>
+              "f.fooBar,h"
+            </code>
+          </pre>
+        </section>
+        <section>
+          <h4>
+            ListValue
+          </h4>
+
+          <pre data-id="code-animation" class="skip-top-bottom-padding">
+            <code class="hljs" data-trim data-line-numbers>
+              [foo, bar, …]
+            </code>
+          </pre>
+        </section>
+        <section>
+          <h4>
+            Value
+          </h4>
+          <p class="custom-text medium-big-text">
+            Any JSON value. Check <code>google.protobuf.Value</code> for details.
+          </p>
+        </section>
+        <section>
+          <h4>
+            NullValue
+          </h4>
+          <p class="custom-text medium-big-text">
+            JSON null
+          </p>
+
+          <pre data-id="code-animation" class="skip-top-bottom-padding">
+            <code class="hljs" data-trim data-line-numbers>
+              null
+            </code>
+          </pre>
+        </section>
+        <section>
+          <h4>
+            Empty
+          </h4>
+          <p class="custom-text medium-big-text">
+            An empty JSON object
+          </p>
+
+          <pre data-id="code-animation" class="skip-top-bottom-padding">
+            <code class="hljs" data-trim data-line-numbers>
+              {}
+            </code>
+          </pre>
+        </section>
+      </section>
+      <section>
+        <section>
+          <h2>
+            Strengths of gRPC
+          </h2>
+          <p class="custom-text medium-big-text">
+            gRPC provides a new take on the old RPC design method by offering many benefits in certain operations. Some of the gRPC strengths which have been increasing its adoption are as follows:
+          </p>
+          <ol class="medium-big-text">
+            <li>
+              Performance
+            </li>
+            <li>
+              Streaming
+            </li>
+            <li>
+              Code Generation
+            </li>
+            <li>
+              Interoperability
+            </li>
+            <li>
+              Security
+            </li>
+            <li>
+              Usability and Productivity
+            </li>
+            <li>
+              Built-in Commodity Features
+            </li>
+          </ol>
+        </section>
+
+        <section>
+          <h3>
+            Performance
+          </h3>
+
+          <p class="custom-text medium-big-text">
+            By different evaluations, gRPC offers up to 10x faster performance and API-security than REST+JSON communication as it uses Protobuf and HTTP/2. Protobuf serializes the messages on the server and client sides quickly, resulting in small and compact message payloads. HTTP/2 scales up the performance ranking via server push, multiplexing, and header compression. Server push enables HTTP/2 to push content from server to client before getting requested, while multiplexing eliminates head-of-line blocking. HTTP/2 uses a more advanced compression method to make the messages smaller, resulting in faster loading.
+          </p>
+        </section>
+
+        <section>
+          <h3>
+            Streaming
+          </h3>
+          <p class="custom-text medium-big-text">
+            gRPC supports client- or server-side streaming semantics, which are already incorporated in the service definition. This makes it much simpler to build streaming services or clients. A gRPC service supports different streaming combinations through HTTP/2:
+          </p>
+           <ul class="ul-left-align medium-big-text">
+            <li>
+              Unary (no streaming)
+            </li>
+            <li>
+              Client-to-server streaming
+            </li>
+            <li>
+              Server-to-client streaming
+            </li>
+            <li>
+              Bi-directional streaming
+            </li>
+          </ul>
+        </section>
+        <section>
+          <h3>
+            Interoperability
+          </h3>
+          <p class="custom-text medium-big-text">
+            gRPC tools and libraries are designed to work with multiple platforms and programming languages, including Java, JavaScript, Ruby, Python, Go, Dart, Objective-C, C#, and more. Due to the Protobuf binary wire format and efficient code generation for virtually all platforms, programmers can develop performant applications while still using full cross-platform support.
+          </p>
+        </section>
+
+        <section>
+          <h3>
+            Security
+          </h3>
+
+          <p class="custom-text medium-big-text">
+            The use of HTTP/2 over the TLS end-to-end encryption connection in gRPC ensures API security. gRPC encourages the use of SSL/TLS to authenticate and encrypts data exchanged between the client and server.
+          </p>
+        </section>
+
+      </section>
+
+      <section>
+        <section>
+          <h2>
+            Weaknesses of gRPC
+          </h2>
+
+          <ol class="medium-big-text">
+            <li>
+              Limited Browser Support
+            </li>
+            <li>
+              Non-human Readable Format
+            </li>
+            <li>
+              No Edge Caching
+            </li>
+            <li>
+              Steeper Learning Curve
+            </li>
+          </ol>
+        </section>
+
+        <section>
+          <h3>
+            Limited Browser Support
+          </h3>
+
+          <p class="custom-text medium-big-text">
+            As gRPC heavily uses HTTP/2, it is impossible to call a gRPC service from a web browser directly. No modern browser provides the control needed over web requests to support a gRPC client. Therefore, a proxy layer and gRPC-web are required to perform conversions between HTTP/1.1 and HTTP/2.
+          </p>
+        </section>
+
+        <section>
+          <h3>
+            Non-human Readable Format
+          </h3>
+
+          <p class="custom-text medium-big-text">
+            Protobuf compresses gRPC messages into a non-human readable format. This compiler needs the message’s interface description in the file to deserialize correctly. So, developers need additional tools like the gRPC command-line tool to analyze Protobuf payloads on the wire, write manual requests, and perform debugging.
+          </p>
+        </section>
+
+
+        <section>
+          <h3>
+            No Edge Caching
+          </h3>
+
+          <p class="custom-text medium-big-text">
+            While HTTP supports mediators for edge caching, gRPC calls use the POST method, which is a threat to API-security. The responses can’t be cached through intermediaries. Moreover, the gRPC specification doesn’t make any provisions and even indicates the wish for cache semantics between server and client.
+          </p>
+        </section>
+
+        <section>
+          <h3>
+            Steeper Learning Curve
+          </h3>
+
+          <p class="custom-text medium-big-text">
+            Many teams find gRPC challenging to learn, get familiar with Protobuf, and look for tools to deal with HTTP/2 friction. It is a common reason why users prefer to rely on REST for as long as possible.
+          </p>
+        </section>
+
+      </section>
+    </div><!-- .slides -->
+
+  </div>
+  <!-- .reveal -->
+
+  <!-- not needed since 3.8.0 -->
+  <!-- script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/lib/js/head.min.js"><script -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/js/reveal.min.js"></script>
+  <script>
+    // Full list of configuration options available at:
+    // https://github.com/hakimel/reveal.js#configuration
+    Reveal.initialize({
+      controls: true,
+      progress: false,
+      history: true,
+      center: true,
+      overview: false,
+      loop: false,
+
+      transition: 'none', // none/fade/slide/convex/concave/zoom
+
+      // Optional reveal.js plugins, loaded from jsDelivr
+      dependencies: [
+        { src: srcUrlPrefix + 'lib/js/classList.js', condition: function () { return !document.body.classList; } },
+        { src: srcUrlPrefix + 'plugin/markdown/marked.js', condition: function () { return !!document.querySelector('[data-markdown]'); } },
+        { src: srcUrlPrefix + 'plugin/markdown/markdown.js', condition: function () { return !!document.querySelector('[data-markdown]'); } },
+        { src: srcUrlPrefix + 'plugin/highlight/highlight.js', async: true, condition: function () { return !!document.querySelector('pre code'); }, callback: function () { hljs.initHighlightingOnLoad(); } },
+        { src: srcUrlPrefix + 'plugin/zoom-js/zoom.js', async: true },
+        { src: srcUrlPrefix + 'plugin/notes/notes.js', async: true }
+      ]
+    });
+  </script>
+</body>
+
+</html>
+
