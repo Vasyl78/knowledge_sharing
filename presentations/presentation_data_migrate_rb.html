@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+
+  <title>Ruby data migrate</title>
+
+  <meta name="description" content="data-migrate">
+
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.4.0/reveal.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.4.0/theme/black.css" id="theme">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.10/styles/ir-black.min.css">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.10/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.10/languages/ruby.min.js"></script>
+
+  <script>
+    var srcUrlPrefix = 'https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.4.0/';
+  </script>
+
+  <style>
+    .container {
+      display: flex;
+    }
+
+    .col {
+      flex: 1
+    }
+    .custom-text {
+      text-indent: 30px;
+      text-align: left;
+    }
+    .medium-big-text {
+      font-size:  85%;
+    }
+    .small-text {
+      font-size: 65%;
+    }
+
+    .small-table {
+      font-size:  55%;
+    }
+
+    .medium-table {
+      font-size:  70%;
+    }
+
+    .small-code {
+      font-size: 75%;
+    }
+
+    section > .ul-left-align {
+      display: block;
+      text-align: left;
+    }
+
+    .custom-text > code {
+      background-color: #3D3D3D
+    }
+    li > code {
+      background-color: #3D3D3D
+    }
+
+    section > pre.skip-top-bottom-padding {
+      margin-top: -35px;
+      margin-bottom: -35px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="reveal">
+    <div class="slides">
+      <section>
+        <h2>
+          Data migrations in Ruby
+        </h2>
+        <p class="custom-text">
+          Data migration is a common part of working with databases, and Ruby developers have many tools at their disposal. Still, it can be a challenge to get it right in every situation.
+        </p>
+        <aside class="notes">
+          General
+          </br>
+          Why we need solution
+
+        </aside>
+      </section>
+
+      <section>
+        <section>
+          <h2>
+            Rails/Sequel migrations
+          </h2>
+          <p class="custom-text">
+            The easiest way is just to have data migrations alongside with schema migrations.
+          </p>
+
+          <p class="custom-text">
+            The policy of Rails is very clear about database migration. It's all about altering the database structure with gradual migration files: "Migrations are a convenient way to alter your database schema over time in a consistent way." <a href="https://edgeguides.rubyonrails.org/active_record_migrations.html#migration-overview">(source)</a>
+          </p>
+        </section>
+
+        <section>
+          <h2>
+            Example
+          </h2>
+          <pre data-id="code-animation">
+            <code class="hljs language-ruby small-code" data-trim data-line-numbers="3-10">
+              # db/migrations/20230102153531_entity_set_accepted_at.rb
+
+              Sequel.migration do
+                up do
+                  Entity.where(status: "accepted", accepted_at: nil).each do |entity|
+                    accepted_at = entity.updated_at || entity.created_at
+                    entity.update(accepted_at: accepted_at)
+                  end
+                end
+              end
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>
+            Positive aspects
+          </h3>
+          <ul class="ul-left-align">
+            <li>
+              increments between versions
+            </li>
+            <li>
+              can run both forwards and reverse
+            </li>
+            <li>
+              convenient to see all the increments as a single list in the file system
+            </li>
+            <li>
+              treat them uniformly during system operation
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>
+            Issues
+          </h3>
+          <ul class="ul-left-align">
+            <li>
+              Code coupling (Data migrations depend on the existing code: models, service objects, etc.)
+            </li>
+            <li>
+              Maintenance issues when using SQL for migrations
+            </li>
+            <li>
+              Possibly long execution times (This increases the downtime for deployments)
+            </li>
+            <li>
+              Hard to test
+            </li>
+            <li>
+              Violation of the Single Responsibility Principle
+            </li>
+          </ul>
+        </section>
+      </section>
+
+      <section>
+        <section>
+          <h2>
+            Ticket system
+          </h2>
+          <p class="custom-text">
+            Since the biggest concern is the presence of data migrations within schema migrations, getting them out of there is a top priority. You can agree not to treat data migrations as part of codebase. They can be debugged in REPL on a staging server and saved in a ticket for manual use in production.
+          </p>
+        </section>
+        <section>
+          <h3>
+            This will be an improvement, but there are serious drawbacks to this approach:
+          </h3>
+          <ul class="ul-left-align">
+            <li>
+              Data migration code cannot be found when searching by model name;
+            </li>
+            <li>
+              There is no thought process of development when using a test;
+            </li>
+            <li>
+              There is no continuous delivery.
+            </li>
+          </ul>
+        </section>
+      </section>
+
+      <section>
+        <section>
+          <h2>
+            Rake tasks
+          </h2>
+          <p class="custom-text">
+            A more reliable, affordable and efficient method is to create Rake tasks for data migrations. It is convenient to cover them with tests. While writing a data migration test, I often have insights about requirements and manage to solve potential business problems.
+          </p>
+        </section>
+
+        <section data-auto-animate>
+          <h2>
+            Example
+          </h2>
+          <pre data-id="code-animation">
+            <code class="hljs small-code language-ruby" data-trim data-line-numbers='3-5,7-10,12-13'>
+              # lib/tasks/set_accepetd_at_entities.rake
+
+              namespace :entities do
+                desc "Entity set accepted_at"
+                task :set_accepetd_at do
+                  ...
+                  Entity.where(status: "accepted", accepted_at: nil).paged_each do |entity|
+                    accepted_at = entity.updated_at || entity.created_at
+                    entity.update(accepted_at:)
+                  end
+                  ...
+                end
+              end
+            </code>
+          </pre>
+        </section>
+
+        <section data-auto-animate>
+          <h2>
+            Example
+          </h2>
+          <pre data-id="code-animation">
+            <code class="hljs small-code language-ruby" data-trim data-line-numbers='3-7,9-12'>
+              # lib/tasks/set_accepetd_at_entities.rake
+
+              namespace :entities do
+                desc "Entity set accepted_at"
+                task :set_accepetd_at do
+                  NawaLogging::Default.logger.info("#" * 100)
+                  NawaLogging::Default.logger.info("entities:set_accepetd_at started")
+                  ...
+                  NawaLogging::Default.logger.info("#" * 100)
+                  NawaLogging::Default.logger.info("entities:set_accepetd_at finished")
+                end
+              end
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>
+             Positive aspects
+          </h3>
+          <ul class="ul-left-align">
+            <li>
+              It can be run on demand at any time in the background without affecting the deployment process
+            </li>
+            <li>
+              Testable
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>
+            Issues
+          </h3>
+          <ul class="ul-left-align">
+            <li>
+              No clear indication that migration has already been performed, so it’s better to be idempotent
+            </li>
+          </ul>
+        </section>
+      </section>
+
+      <section>
+        <section>
+          <h2>
+            Separate inner classes within migration
+          </h2>
+          <p class="custom-text">
+            Mark Qualie suggests adding a nested class definition and an up method, which determines the data migration logic, to the schema migration code. Thus, the “locality” of knowledge about schema changes and related data changes is achieved.
+          </p>
+        </section>
+
+        <section data-auto-animate>
+          <h2>
+            Example
+          </h2>
+          <pre data-id="code-animation">
+            <code class="hljs small-code language-ruby" data-trim data-line-numbers='1-5|7-19'>
+              class AddLastSmiledAtColumnToUsers < ActiveRecord::Migration[5.1]
+                def change
+                  add_column :users, :last_smiled_at, :datetime
+                  add_index :users, :last_smiled_at
+                end
+
+                class Data
+                  def up
+                    User.all.find_in_batches(batch_size: 250).each do |group|
+                      ActiveRecord::Base.transaction do
+                        group.each do |user|
+                          user.last_smiled_at = user.smiles.last.created_at
+                          user.save if user.changed?
+                        end
+                      end
+                    end
+                  end
+                end
+              end
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <p class="custom-text">
+            The author proposes to implement this logic in the following way:
+          </p>
+
+          <pre data-id="code-animation">
+            <code class="hljs small-code language-ruby" data-trim data-line-numbers>
+              Dir.glob("#{Rails.root}/db/migrate/*.rb").each { |file| require file }
+              AddLastSmiledAtColumnToUsers::Data.new.up
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>
+            Positive aspects
+          </h3>
+          <ul class="ul-left-align">
+            <li>
+              It is not run as part of the schema migrations, nor is it part of the actual migration class
+            </li>
+            <li>
+              It can be run on demand at any time in the background without affecting the deployment process
+            </li>
+            <li>
+              Testable
+            </li>
+            <li>
+              All of that, and it's also tightly linked to the migration for reference and code review.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>
+            Issues
+          </h3>
+          <ul class="ul-left-align">
+            <li>
+              No clear indication that migration has already been performed, so it’s better to be idempotent
+            </li>
+            <li>
+              Need to implement custom logic how to run data migrations
+            </li>
+          </ul>
+        </section>
+      </section>
+
+      <section>
+        <section>
+          <h2>
+            Data migrate
+          </h2>
+          <p class="custom-text">
+            There are a couple of gems that helps organize your data migrations in the same way as schema migrations, one of the most known <a href="https://github.com/ilyakatz/data-migrate">data-migrate</a>.
+          </p>
+        </section>
+
+        <section data-auto-animate>
+          <h2>
+            Example (Data migrate)
+          </h2>
+          <pre data-id="code-animation">
+            <code class="hljs small-code language-ruby" data-trim data-line-numbers='3-14'>
+              # db/data/20230102153531_entity_set_accepted_at.rb
+
+              class EntitySetAcceptedAt < ActiveRecord::Migration[5.1]
+                def up
+                  Entity.all.where(status: "accepted", accepted_at: nil).each do |entity|
+                    accepted_at = entity.updated_at || entity.created_at
+                    entity.update(accepted_at: accepted_at)
+                  end
+                end
+
+                def down
+                  raise ActiveRecord::IrreversibleMigration
+                end
+              end
+            </code>
+          </pre>
+        </section>
+
+        <section>
+          <h3>
+          Positive aspects (Data migrate gem)
+          </h3>
+          <ul class="ul-left-align">
+            <li>
+              Has versioning the same way as schema migrations
+            </li>
+            <li>
+              Can be easily run during deployment
+            </li>
+            <li>
+              Testable: via either extracting logic into dedicated classes, or setting up a test helper to run the actual migration during tests
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>
+           Cons of Data migrate gem
+          </h3>
+          <ul class="ul-left-align">
+            <li>
+              Additional setup
+            </li>
+
+            <li>
+              Support only ActiveRecord
+            </li>
+          </ul>
+        </section>
+      </section>
+
+      <section>
+        <h4>Comparative characteristics of known solutions</h4>
+        <table class="small-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Schema migration</th>
+              <th>Ticket script</th>
+              <th>Rake</th>
+              <th>Inner class in schema migration</th>
+              <th>Data migration gem</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Zero Downtime Deployment</td>
+              <td>-</td>
+              <td>+</td>
+              <td>+</td>
+              <td>+</td>
+              <td>+</td>
+            </tr>
+
+            <tr>
+              <td>Test first</td>
+              <td>-</td>
+              <td>-</td>
+              <td>+</td>
+              <td>+</td>
+              <td>+ (optional)</td>
+            </tr>
+
+            <tr>
+              <td>Continuous Delivery</td>
+              <td>+</td>
+              <td>-</td>
+              <td>-</td>
+              <td>Need to develop a version tracking mechanism</td>
+              <td>+</td>
+            </tr>
+
+            <tr>
+              <td>Belongs to codebase</td>
+              <td>+</td>
+              <td>-</td>
+              <td>+</td>
+              <td>+</td>
+              <td>+</td>
+            </tr>
+
+            <tr>
+              <td>Locality</td>
+              <td>+</td>
+              <td>-</td>
+              <td>-</td>
+              <td>+</td>
+              <td>+</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </div><!-- .slides -->
+  </div>
+  <!-- .reveal -->
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.4.0/reveal.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.4.0/plugin/highlight/highlight.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.4.0/plugin/notes/notes.js"></script>
+  <script>
+    // Full list of configuration options available at:
+    // https://github.com/hakimel/reveal.js#configuration
+    Reveal.initialize({
+      controls: true,
+      progress: false,
+      history: true,
+      center: true,
+      overview: false,
+      loop: false,
+
+      transition: 'none', // none/fade/slide/convex/concave/zoom
+
+      dependencies: [
+        { src: srcUrlPrefix + 'lib/classList.js', condition: function () { return !document.body.classList; } },
+        { src: srcUrlPrefix + 'plugin/markdown/markdown.js', condition: function () { return !!document.querySelector('[data-markdown]'); } },
+        { src: srcUrlPrefix + 'plugin/markdown/markdown.js', condition: function () { return !!document.querySelector('[data-markdown]'); } },
+        { src: srcUrlPrefix + 'plugin/zoom/zoom.js', async: true },
+      ],
+      plugins: [ RevealHighlight, RevealNotes ]
+    });
+  </script>
+</body>
+</html>
